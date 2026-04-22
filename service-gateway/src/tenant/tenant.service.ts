@@ -1,6 +1,7 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { CreateChannelDto } from './dto/create-channel.dto';
@@ -10,7 +11,12 @@ import { UpsertAgentConfigDto } from './dto/upsert-config.dto';
 
 @Injectable()
 export class TenantService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(TenantService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly messaging: MessagingService,
+  ) {}
 
   // ── AgentConfig ────────────────────────────────────────────────────
   getConfig(tenantId: string) {
@@ -77,7 +83,7 @@ export class TenantService {
     if (!branch || branch.tenantId !== tenantId) {
       throw new ForbiddenException('Branch does not belong to this tenant');
     }
-    return this.prisma.messagingChannel.create({
+    const channel = await this.prisma.messagingChannel.create({
       data: {
         tenantId,
         branchId: dto.branchId,
@@ -87,6 +93,14 @@ export class TenantService {
         isActive: dto.isActive ?? true,
       },
     });
+    try {
+      await this.messaging.setupChannel(channel);
+    } catch (err) {
+      this.logger.warn(
+        `Channel ${channel.id} criado mas setup falhou: ${(err as Error).message}`,
+      );
+    }
+    return channel;
   }
 
   async deleteChannel(tenantId: string, id: string) {
