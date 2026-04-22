@@ -1,0 +1,175 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  users         User[]
+  branches      Branch[]
+  knowledgeBase KnowledgeChunk[]
+  agentConfig   AgentConfig?
+  conversations Conversation[]
+}
+
+model Branch {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+  channels      MessagingChannel[]
+  users         UserBranch[]
+  conversations Conversation[]
+
+  @@index([tenantId])
+}
+
+model User {
+  id        String   @id @default(cuid())
+  tenantId  String
+  email     String   @unique
+  password  String
+  role      Role     @default(AGENT)
+  createdAt DateTime @default(now())
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  branches      UserBranch[]
+  conversations Conversation[] @relation("AssignedAgent")
+
+  @@index([tenantId])
+}
+
+model UserBranch {
+  userId   String
+  branchId String
+
+  user   User   @relation(fields: [userId], references: [id])
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  @@id([userId, branchId])
+  @@index([branchId])
+}
+
+enum Role {
+  ADMIN
+  AGENT
+}
+
+model MessagingChannel {
+  id          String      @id @default(cuid())
+  tenantId    String
+  branchId    String
+  type        ChannelType
+  identifier  String      @unique
+  displayName String
+  isActive    Boolean     @default(true)
+
+  branch        Branch         @relation(fields: [branchId], references: [id])
+  conversations Conversation[]
+
+  @@index([tenantId])
+  @@index([branchId])
+}
+
+enum ChannelType {
+  TELEGRAM
+  WHATSAPP
+}
+
+model Conversation {
+  id             String           @id @default(cuid())
+  tenantId       String
+  branchId       String
+  channelId      String
+  customerRef    String
+  customerName   String?
+  mode           ConversationMode @default(AI)
+  status         ConvStatus       @default(OPEN)
+  assignedUserId String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  tenant       Tenant           @relation(fields: [tenantId], references: [id])
+  branch       Branch           @relation(fields: [branchId], references: [id])
+  channel      MessagingChannel @relation(fields: [channelId], references: [id])
+  assignedUser User?            @relation("AssignedAgent", fields: [assignedUserId], references: [id])
+  messages     Message[]
+
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([channelId])
+  @@index([status])
+  @@index([mode])
+}
+
+enum ConversationMode {
+  AI
+  HUMAN
+}
+
+enum ConvStatus {
+  OPEN
+  RESOLVED
+  WAITING
+}
+
+model Message {
+  id             String     @id @default(cuid())
+  conversationId String
+  sender         SenderType
+  content        String
+  externalId     String?
+  createdAt      DateTime   @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+enum SenderType {
+  USER
+  AGENT
+  AI
+  SYSTEM
+}
+
+model AgentConfig {
+  id                String   @id @default(cuid())
+  tenantId          String   @unique
+  systemPrompt      String   @db.Text
+  tone              String   @default("professional")
+  escalateOnWords   String[]
+  offHoursMessage   String?
+  workingHoursStart Int      @default(8)
+  workingHoursEnd   Int      @default(18)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+}
+
+model KnowledgeChunk {
+  id        String                       @id @default(cuid())
+  tenantId  String
+  content   String                       @db.Text
+  embedding Unsupported("vector(1536)")?
+  sourceUrl String?
+  createdAt DateTime                     @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+}
