@@ -8,6 +8,7 @@ import { TenantInterceptor } from './auth/interceptors/tenant.interceptor';
 import { ConversationModule } from './conversation/conversation.module';
 import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma/prisma.module';
+import { TenantModule } from './tenant/tenant.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     AuthModule,
     ConversationModule,
+    TenantModule,
   ],
   controllers: [HealthController],
   providers: [
