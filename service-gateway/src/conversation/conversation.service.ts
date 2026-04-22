@@ -7,6 +7,7 @@ import {
 import { ConvStatus, ConversationMode, Prisma, SenderType } from '@prisma/client';
 import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ChatGateway } from '../socket/chat.gateway';
 import { AssignDto } from './dto/assign.dto';
 import { ListConversationsDto } from './dto/list-conversations.dto';
 import { UpdateModeDto } from './dto/update-mode.dto';
@@ -16,6 +17,7 @@ export class ConversationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly messaging: MessagingService,
+    private readonly gateway: ChatGateway,
   ) {}
 
   async list(tenantId: string, query: ListConversationsDto) {
@@ -72,10 +74,17 @@ export class ConversationService {
 
   async updateMode(tenantId: string, id: string, dto: UpdateModeDto) {
     await this.loadOwned(tenantId, id);
-    return this.prisma.conversation.update({
+    const updated = await this.prisma.conversation.update({
       where: { id },
       data: { mode: dto.mode },
     });
+    this.gateway.emitUpdated(tenantId, {
+      conversationId: updated.id,
+      tenantId,
+      mode: updated.mode,
+      status: updated.status,
+    });
+    return updated;
   }
 
   async assign(tenantId: string, id: string, dto: AssignDto) {
@@ -86,21 +95,36 @@ export class ConversationService {
         throw new ForbiddenException('Assignee must belong to the same tenant');
       }
     }
-    return this.prisma.conversation.update({
+    const updated = await this.prisma.conversation.update({
       where: { id },
       data: {
         assignedUserId: dto.userId ?? null,
         mode: dto.userId ? ConversationMode.HUMAN : ConversationMode.AI,
       },
     });
+    this.gateway.emitUpdated(tenantId, {
+      conversationId: updated.id,
+      tenantId,
+      mode: updated.mode,
+      status: updated.status,
+      assignedUserId: updated.assignedUserId,
+    });
+    return updated;
   }
 
   async resolve(tenantId: string, id: string) {
     await this.loadOwned(tenantId, id);
-    return this.prisma.conversation.update({
+    const updated = await this.prisma.conversation.update({
       where: { id },
       data: { status: ConvStatus.RESOLVED },
     });
+    this.gateway.emitUpdated(tenantId, {
+      conversationId: updated.id,
+      tenantId,
+      mode: updated.mode,
+      status: updated.status,
+    });
+    return updated;
   }
 
   async sendAgentMessage(tenantId: string, id: string, content: string) {
@@ -113,10 +137,14 @@ export class ConversationService {
       content,
       SenderType.AGENT,
     );
-    // Toca em updatedAt para que a listagem ordenada reflita a atividade.
     await this.prisma.conversation.update({
       where: { id: conv.id },
       data: { updatedAt: new Date() },
+    });
+    this.gateway.emitMessage(tenantId, conv.id, {
+      conversationId: conv.id,
+      tenantId,
+      message,
     });
     return message;
   }
