@@ -15,6 +15,8 @@ import { ConfigService } from '@nestjs/config';
 import { ConvStatus, SenderType } from '@prisma/client';
 import { Public } from '../../auth/decorators/public.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MessagingIncomingPayload, RedisChannels } from '../../redis/redis.constants';
+import { RedisPublisher } from '../../redis/redis.service';
 import { ChatGateway } from '../../socket/chat.gateway';
 import { TelegramUpdate } from './telegram.types';
 
@@ -27,6 +29,7 @@ export class TelegramWebhookController {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly gateway: ChatGateway,
+    private readonly redis: RedisPublisher,
   ) {}
 
   @Post(':channelId')
@@ -113,6 +116,18 @@ export class TelegramWebhookController {
       tenantId: channel.tenantId,
       message,
     });
+
+    // Publica para o service-agent processar (SPEC-10)
+    const payload: MessagingIncomingPayload = {
+      tenantId: channel.tenantId,
+      channelType: channel.type,
+      conversationId: conversation.id,
+      messageId: message.id,
+      customerRef,
+      content: msg.text,
+      timestamp: message.createdAt.toISOString(),
+    };
+    await this.redis.publish(RedisChannels.messagingIncoming, payload);
 
     this.logger.log(
       `Telegram update received: channel=${channel.id} conv=${conversation.id} msg=${message.id} (new=${isNew})`,

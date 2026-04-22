@@ -4,9 +4,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ConvStatus, ConversationMode, Prisma, SenderType } from '@prisma/client';
+import { Conversation, ConvStatus, ConversationMode, Prisma, SenderType } from '@prisma/client';
 import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  ConversationUpdatedPayload,
+  RedisChannels,
+} from '../redis/redis.constants';
+import { RedisPublisher } from '../redis/redis.service';
 import { ChatGateway } from '../socket/chat.gateway';
 import { AssignDto } from './dto/assign.dto';
 import { ListConversationsDto } from './dto/list-conversations.dto';
@@ -18,7 +23,18 @@ export class ConversationService {
     private readonly prisma: PrismaService,
     private readonly messaging: MessagingService,
     private readonly gateway: ChatGateway,
+    private readonly redis: RedisPublisher,
   ) {}
+
+  private async publishUpdated(conv: Conversation) {
+    const payload: ConversationUpdatedPayload = {
+      conversationId: conv.id,
+      tenantId: conv.tenantId,
+      mode: conv.mode,
+      status: conv.status,
+    };
+    await this.redis.publish(RedisChannels.conversationUpdated, payload);
+  }
 
   async list(tenantId: string, query: ListConversationsDto) {
     const where: Prisma.ConversationWhereInput = { tenantId };
@@ -84,6 +100,7 @@ export class ConversationService {
       mode: updated.mode,
       status: updated.status,
     });
+    await this.publishUpdated(updated);
     return updated;
   }
 
@@ -109,6 +126,7 @@ export class ConversationService {
       status: updated.status,
       assignedUserId: updated.assignedUserId,
     });
+    await this.publishUpdated(updated);
     return updated;
   }
 
@@ -124,6 +142,7 @@ export class ConversationService {
       mode: updated.mode,
       status: updated.status,
     });
+    await this.publishUpdated(updated);
     return updated;
   }
 

@@ -36,3 +36,6 @@ redisdata/
 
 # Prisma
 **/prisma/migrations/dev.db*
+
+# Claude Code harness
+.claude/
