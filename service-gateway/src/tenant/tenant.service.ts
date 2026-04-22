@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { MessagingService } from '../messaging/messaging.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisChannels } from '../redis/redis.constants';
+import { RedisPublisher } from '../redis/redis.service';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
@@ -16,6 +18,7 @@ export class TenantService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly messaging: MessagingService,
+    private readonly redis: RedisPublisher,
   ) {}
 
   // ── AgentConfig ────────────────────────────────────────────────────
@@ -119,11 +122,13 @@ export class TenantService {
     });
   }
 
-  createKnowledge(tenantId: string, dto: CreateKnowledgeDto) {
-    return this.prisma.knowledgeChunk.create({
+  async createKnowledge(tenantId: string, dto: CreateKnowledgeDto) {
+    const chunk = await this.prisma.knowledgeChunk.create({
       data: { tenantId, content: dto.content, sourceUrl: dto.sourceUrl },
       select: { id: true, content: true, sourceUrl: true, createdAt: true },
     });
+    await this.redis.xadd(RedisChannels.knowledgeChunkCreated, { chunkId: chunk.id, tenantId });
+    return chunk;
   }
 
   async deleteKnowledge(tenantId: string, id: string) {

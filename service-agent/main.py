@@ -2,15 +2,18 @@ import asyncio
 import logging
 import os
 import sys
+from contextlib import asynccontextmanager
 
 import redis.asyncio as aioredis
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 
+from consumer.embedding_consumer import start_embedding_consumer
 from consumer.redis_consumer import start_consumer
+from rag.embeddings import _get_model
 
 load_dotenv()
 
@@ -24,15 +27,8 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 REDIS_URL = os.getenv("REDIS_URL")
 PORT = int(os.getenv("PORT", "8000"))
 
-app = FastAPI(title="service-agent", version="0.1.0")
 
-
-@app.get("/health")
-async def health() -> dict:
-    return {"status": "ok"}
-
-
-async def check_postgres() -> None:
+async def _check_postgres() -> None:
     if not DATABASE_URL:
         logger.error("DATABASE_URL is not set")
         sys.exit(1)
@@ -48,7 +44,7 @@ async def check_postgres() -> None:
         await engine.dispose()
 
 
-async def check_redis() -> None:
+async def _check_redis() -> None:
     if not REDIS_URL:
         logger.error("REDIS_URL is not set")
         sys.exit(1)
@@ -63,16 +59,32 @@ async def check_redis() -> None:
         await client.aclose()
 
 
-async def run() -> None:
-    await check_postgres()
-    await check_redis()
+_bg_tasks: set = set()
 
-    asyncio.create_task(start_consumer())
 
-    config = uvicorn.Config(app, host="0.0.0.0", port=PORT, log_level="info")
-    server = uvicorn.Server(config)
-    await server.serve()
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    await _check_postgres()
+    await _check_redis()
+    # Pre-load embedding model before tasks start so model.encode() in threads
+    # doesn't race with the event loop startup.
+    _get_model()
+    # Keep strong references to tasks — asyncio only holds weak refs and GC
+    # can collect un-referenced tasks mid-execution.
+    for coro in (start_consumer(), start_embedding_consumer()):
+        task = asyncio.create_task(coro)
+        _bg_tasks.add(task)
+        task.add_done_callback(_bg_tasks.discard)
+    yield
+
+
+app = FastAPI(title="service-agent", version="0.1.0", lifespan=lifespan)
+
+
+@app.get("/health")
+async def health() -> dict:
+    return {"status": "ok"}
 
 
 if __name__ == "__main__":
-    asyncio.run(run())
+    uvicorn.run(app, host="0.0.0.0", port=PORT, log_level="info")

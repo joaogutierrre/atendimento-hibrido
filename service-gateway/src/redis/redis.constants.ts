@@ -5,6 +5,7 @@ export const RedisChannels = {
   conversationUpdated: 'conversation:updated',
   agentRespond: 'agent:respond',
   agentEscalate: 'agent:escalate',
+  knowledgeChunkCreated: 'knowledge:chunk-created',
 } as const;
 
 export type RedisChannel = (typeof RedisChannels)[keyof typeof RedisChannels];

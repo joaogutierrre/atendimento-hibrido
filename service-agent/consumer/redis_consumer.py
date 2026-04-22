@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -105,9 +106,7 @@ async def start_consumer() -> None:
 
         except aioredis.ConnectionError as exc:
             logger.error("Redis connection lost: %s — retrying", exc)
-            import asyncio
             await asyncio.sleep(2)
         except Exception as exc:
             logger.error("Unexpected consumer error: %s", exc, exc_info=True)
-            import asyncio
             await asyncio.sleep(1)
