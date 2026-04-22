@@ -1,51 +1,63 @@
-"""LangChain-compatible tools for the ReAct agent."""
+"""LangChain tools for the ReAct agent — created per-request via make_tools()."""
 import json
+import logging
 
+import redis.asyncio as aioredis
 from langchain_core.tools import tool
 
+from agent.memory import get_conversation_history
 from db.session import get_session_factory
 from rag.retriever import search_knowledge_base as _search_kb
 
+logger = logging.getLogger(__name__)
 
-@tool
-async def send_message(conversation_id: str, content: str) -> str:
-    """Send a message to the customer via the correct channel.
-
-    Publishes agent:respond to Redis so service-gateway delivers it.
-    """
-    raise NotImplementedError("Implemented in SPEC-12")
+AGENT_RESPOND = "agent:respond"
+AGENT_ESCALATE = "agent:escalate"
 
 
-@tool
-async def escalate_to_human(conversation_id: str, reason: str) -> str:
-    """Escalate the conversation to a human agent.
+def make_tools(conversation_id: str, tenant_id: str, redis_client: aioredis.Redis) -> list:
+    """Create tool instances bound to the current conversation context."""
 
-    Publishes agent:escalate to Redis so service-gateway switches mode to HUMAN.
-    """
-    raise NotImplementedError("Implemented in SPEC-12")
+    @tool
+    async def send_message(content: str) -> str:
+        """Send a reply to the customer. Always call this to deliver your answer."""
+        payload = json.dumps({
+            "conversationId": conversation_id,
+            "tenantId": tenant_id,
+            "content": content,
+        })
+        await redis_client.publish(AGENT_RESPOND, payload)
+        logger.info("send_message conv=%s published %d chars", conversation_id, len(content))
+        return "Message sent successfully"
 
+    @tool
+    async def escalate_to_human(reason: str) -> str:
+        """Escalate the conversation to a human agent when you cannot help."""
+        payload = json.dumps({
+            "conversationId": conversation_id,
+            "tenantId": tenant_id,
+            "reason": reason,
+        })
+        await redis_client.publish(AGENT_ESCALATE, payload)
+        logger.info("escalate_to_human conv=%s reason=%r", conversation_id, reason)
+        return f"Escalated to human: {reason}"
 
-@tool
-async def search_knowledge_base(tenant_id: str, query: str) -> str:
-    """Search the tenant's knowledge base using semantic similarity (RAG).
+    @tool
+    async def search_knowledge_base(query: str) -> str:
+        """Search the tenant knowledge base for information relevant to the query."""
+        session_factory = get_session_factory()
+        async with session_factory() as db:
+            results = await _search_kb(db, tenant_id, query)
+        if not results:
+            return json.dumps({"found": False, "chunks": []})
+        return json.dumps({"found": True, "chunks": results}, ensure_ascii=False)
 
-    Returns the top-3 most relevant chunks as a JSON string.
-    """
-    session_factory = get_session_factory()
-    async with session_factory() as db:
-        results = await _search_kb(db, tenant_id, query)
-    return json.dumps(results, ensure_ascii=False)
+    @tool
+    async def get_conversation_history() -> str:
+        """Retrieve recent conversation messages for context."""
+        session_factory = get_session_factory()
+        async with session_factory() as db:
+            history = await get_conversation_history(db, conversation_id)
+        return json.dumps(history, ensure_ascii=False, default=str)
 
-
-@tool
-async def get_conversation_history_tool(conversation_id: str) -> str:
-    """Retrieve the last N messages of a conversation for context."""
-    raise NotImplementedError("Implemented in SPEC-12")
-
-
-AGENT_TOOLS = [
-    send_message,
-    escalate_to_human,
-    search_knowledge_base,
-    get_conversation_history_tool,
-]
+    return [send_message, escalate_to_human, search_knowledge_base, get_conversation_history]

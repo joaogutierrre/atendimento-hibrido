@@ -62,14 +62,6 @@ async def _process_entry(client: aioredis.Redis, entry_id: bytes, fields: dict) 
 
     try:
         await run_agent(message)
-    except NotImplementedError:
-        logger.warning("run_agent not implemented (SPEC-12) — publishing mock response")
-        mock_payload = json.dumps({
-            "conversationId": conversation_id,
-            "tenantId": tenant_id,
-            "content": "[SPEC-12 pending]",
-        })
-        await client.publish(AGENT_RESPOND, mock_payload)
     except Exception as exc:
         # Unhandled error: do NOT xack — message stays pending for retry
         logger.error("Error processing entry %s: %s", entry_id, exc, exc_info=True)
