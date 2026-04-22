@@ -9,6 +9,7 @@ import { ConversationModule } from './conversation/conversation.module';
 import { HealthController } from './health/health.controller';
 import { MessagingModule } from './messaging/messaging.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RedisModule } from './redis/redis.module';
 import { SocketModule } from './socket/socket.module';
 import { TenantModule } from './tenant/tenant.module';
 
@@ -16,6 +17,7 @@ import { TenantModule } from './tenant/tenant.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    RedisModule,
     AuthModule,
     SocketModule,
     ConversationModule,
