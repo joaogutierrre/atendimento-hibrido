@@ -51,7 +51,6 @@ services:
         condition: service_healthy
     networks:
       - platform_net
-    profiles: ["app"]
 
   agent:
     build:
