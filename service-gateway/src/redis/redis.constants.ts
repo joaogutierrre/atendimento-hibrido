@@ -9,6 +9,7 @@ export const RedisChannels = {
 
 export type RedisChannel = (typeof RedisChannels)[keyof typeof RedisChannels];
 
+// messaging:incoming is a Redis Stream (XADD / XREADGROUP)
 export interface MessagingIncomingPayload {
   tenantId: string;
   channelType: 'TELEGRAM' | 'WHATSAPP';
@@ -17,6 +18,7 @@ export interface MessagingIncomingPayload {
   customerRef: string;
   content: string;
   timestamp: string;
+  mode: 'AI' | 'HUMAN';
 }
 
 export interface ConversationUpdatedPayload {
