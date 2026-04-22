@@ -15,6 +15,12 @@ export class RedisPublisher implements OnModuleDestroy {
     return subscribers;
   }
 
+  async xadd(stream: RedisChannel, payload: unknown): Promise<string> {
+    const id = await this.client.xadd(stream, '*', 'data', JSON.stringify(payload));
+    this.logger.debug(`xadd -> ${stream} id=${id}`);
+    return id as string;
+  }
+
   async onModuleDestroy() {
     await this.client.quit();
   }

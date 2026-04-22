@@ -63,15 +63,16 @@ async def check_redis() -> None:
         await client.aclose()
 
 
-async def startup() -> None:
+async def run() -> None:
     await check_postgres()
     await check_redis()
-    await start_consumer()
 
-
-if __name__ == "__main__":
-    asyncio.run(startup())
+    asyncio.create_task(start_consumer())
 
     config = uvicorn.Config(app, host="0.0.0.0", port=PORT, log_level="info")
     server = uvicorn.Server(config)
-    asyncio.run(server.serve())
+    await server.serve()
+
+
+if __name__ == "__main__":
+    asyncio.run(run())
