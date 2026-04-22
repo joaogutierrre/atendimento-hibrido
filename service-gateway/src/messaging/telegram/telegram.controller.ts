@@ -117,7 +117,7 @@ export class TelegramWebhookController {
       message,
     });
 
-    // Publica para o service-agent processar (SPEC-10)
+    // Publica para o service-agent processar via Redis Stream (SPEC-10)
     const payload: MessagingIncomingPayload = {
       tenantId: channel.tenantId,
       channelType: channel.type,
@@ -126,8 +126,9 @@ export class TelegramWebhookController {
       customerRef,
       content: msg.text,
       timestamp: message.createdAt.toISOString(),
+      mode: conversation.mode,
     };
-    await this.redis.publish(RedisChannels.messagingIncoming, payload);
+    await this.redis.xadd(RedisChannels.messagingIncoming, payload);
 
     this.logger.log(
       `Telegram update received: channel=${channel.id} conv=${conversation.id} msg=${message.id} (new=${isNew})`,

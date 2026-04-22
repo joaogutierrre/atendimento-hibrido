@@ -165,7 +165,7 @@ model KnowledgeChunk {
   id        String                       @id @default(cuid())
   tenantId  String
   content   String                       @db.Text
-  embedding Unsupported("vector(1536)")?
+  embedding Unsupported("vector(384)")?
   sourceUrl String?
   createdAt DateTime                     @default(now())
 

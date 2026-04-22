@@ -37,7 +37,7 @@ Plataforma SaaS multi-tenant de atendimento via mensageria (Telegram e WhatsApp)
 - Runtime: Python 3.12+
 - Framework: FastAPI (apenas para health check e admin endpoints)
 - Agent: LangChain + LangGraph (ReAct Agent)
-- LLM: Anthropic Claude (anthropic SDK)
+- LLM: Ollama gemma:4b local (langchain-ollama) — opção MVP sem custo de API
 - Embeddings/RAG: pgvector + sentence-transformers
 - Fila: Redis consumer groups
 - ORM: SQLAlchemy + asyncpg
@@ -1014,7 +1014,7 @@ curl localhost:8000/health   # { "status": "ok" }
 **Objetivo:** agente autônomo tomando decisões com base no contexto do tenant.
 
 **Entregáveis:**
-- `agent/core.py` com `create_react_agent` (LangChain) + Claude SDK
+- `agent/core.py` com `create_react_agent` (LangChain) + **Ollama gemma:4b** (LLM local — sem custo de API; opção MVP)
 - `agent/tools.py` com as 4 ferramentas: `send_message`, `escalate_to_human`, `search_knowledge_base`, `get_conversation_history`
 - `agent/prompts.py` construindo system prompt dinâmico a partir de `AgentConfig` do tenant
 - `agent/memory.py` buscando últimas N mensagens da conversa para contexto
