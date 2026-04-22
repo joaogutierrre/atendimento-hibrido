@@ -19,6 +19,10 @@ export class TelegramProvider implements IMessagingProvider {
     to: string,
     content: string,
   ): Promise<SendResult> {
+    if (this.config.get<string>('MESSAGING_DRY_RUN') === 'true') {
+      this.logger.debug(`[dry-run] TELEGRAM -> ${to}: ${content}`);
+      return { externalId: `dry-${Date.now()}` };
+    }
     const token = channel.identifier;
     const res = await fetch(this.botApi(token, 'sendMessage'), {
       method: 'POST',
