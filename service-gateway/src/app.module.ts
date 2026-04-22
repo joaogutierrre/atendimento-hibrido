@@ -7,6 +7,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
 import { TenantInterceptor } from './auth/interceptors/tenant.interceptor';
 import { ConversationModule } from './conversation/conversation.module';
 import { HealthController } from './health/health.controller';
+import { MessagingModule } from './messaging/messaging.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { TenantModule } from './tenant/tenant.module';
 
@@ -16,6 +17,7 @@ import { TenantModule } from './tenant/tenant.module';
     PrismaModule,
     AuthModule,
     ConversationModule,
+    MessagingModule,
     TenantModule,
   ],
   controllers: [HealthController],
