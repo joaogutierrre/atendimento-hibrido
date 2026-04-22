@@ -15,6 +15,7 @@ import { ConfigService } from '@nestjs/config';
 import { ConvStatus, SenderType } from '@prisma/client';
 import { Public } from '../../auth/decorators/public.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ChatGateway } from '../../socket/chat.gateway';
 import { TelegramUpdate } from './telegram.types';
 
 @Public()
@@ -25,6 +26,7 @@ export class TelegramWebhookController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly gateway: ChatGateway,
   ) {}
 
   @Post(':channelId')
@@ -67,6 +69,7 @@ export class TelegramWebhookController {
       },
     });
 
+    const isNew = !existing;
     const conversation =
       existing ??
       (await this.prisma.conversation.create({
@@ -79,11 +82,9 @@ export class TelegramWebhookController {
         },
       }));
 
-    if (!existing && customerName) {
-      // no-op — nova conversa ja foi criada com o nome
-    } else if (existing && customerName && existing.customerName !== customerName) {
+    if (!isNew && customerName && existing!.customerName !== customerName) {
       await this.prisma.conversation.update({
-        where: { id: existing.id },
+        where: { id: existing!.id },
         data: { customerName },
       });
     }
@@ -97,8 +98,24 @@ export class TelegramWebhookController {
       },
     });
 
+    if (isNew) {
+      this.gateway.emitNew(channel.tenantId, {
+        conversationId: conversation.id,
+        tenantId: channel.tenantId,
+        branchId: channel.branchId,
+        channelId: channel.id,
+        customerRef,
+        customerName,
+      });
+    }
+    this.gateway.emitMessage(channel.tenantId, conversation.id, {
+      conversationId: conversation.id,
+      tenantId: channel.tenantId,
+      message,
+    });
+
     this.logger.log(
-      `Telegram update received: channel=${channel.id} conv=${conversation.id} msg=${message.id}`,
+      `Telegram update received: channel=${channel.id} conv=${conversation.id} msg=${message.id} (new=${isNew})`,
     );
 
     return { ok: true, conversationId: conversation.id, messageId: message.id };

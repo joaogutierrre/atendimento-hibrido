@@ -9,6 +9,7 @@ import { ConversationModule } from './conversation/conversation.module';
 import { HealthController } from './health/health.controller';
 import { MessagingModule } from './messaging/messaging.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { SocketModule } from './socket/socket.module';
 import { TenantModule } from './tenant/tenant.module';
 
 @Module({
@@ -16,6 +17,7 @@ import { TenantModule } from './tenant/tenant.module';
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     AuthModule,
+    SocketModule,
     ConversationModule,
     MessagingModule,
     TenantModule,
