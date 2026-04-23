@@ -3,6 +3,7 @@ import { ChannelType, MessagingChannel, SenderType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { IMessagingProvider } from './messaging.interface';
 import { TelegramProvider } from './telegram/telegram.provider';
+import { WhatsAppProvider } from './whatsapp/whatsapp.provider';
 
 @Injectable()
 export class MessagingService {
@@ -11,9 +12,11 @@ export class MessagingService {
   constructor(
     private readonly prisma: PrismaService,
     telegram: TelegramProvider,
+    whatsapp: WhatsAppProvider,
   ) {
     this.providers = new Map<ChannelType, IMessagingProvider>([
       [ChannelType.TELEGRAM, telegram],
+      [ChannelType.WHATSAPP, whatsapp],
     ]);
   }
 
