@@ -151,8 +151,9 @@ export class WhatsAppWebhookController {
       customerRef,
       content: waMsg.text!.body,
       timestamp: message.createdAt.toISOString(),
+      mode: conversation.mode,
     };
-    await this.redis.publish(RedisChannels.messagingIncoming, payload);
+    await this.redis.xadd(RedisChannels.messagingIncoming, payload);
 
     this.logger.log(
       `WhatsApp message: channel=${channel!.id} conv=${conversation.id} msg=${message.id} (new=${isNew})`,
