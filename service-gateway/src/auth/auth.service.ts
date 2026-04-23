@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
-import { JwtPayload } from './types';
+import { AuthUserDto, JwtPayload } from './types';
 
 @Injectable()
 export class AuthService {
@@ -11,8 +11,14 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) {}
 
-  async login(email: string, password: string): Promise<{ accessToken: string }> {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+  async login(
+    email: string,
+    password: string,
+  ): Promise<{ accessToken: string; user: AuthUserDto }> {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      include: { branches: { select: { branchId: true } } },
+    });
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const ok = await bcrypt.compare(password, user.password);
@@ -22,7 +28,35 @@ export class AuthService {
       sub: user.id,
       tenantId: user.tenantId,
       role: user.role,
+      email: user.email,
     };
-    return { accessToken: await this.jwt.signAsync(payload) };
+    const accessToken = await this.jwt.signAsync(payload);
+
+    return {
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        tenantId: user.tenantId,
+        branchIds: user.branches.map((b) => b.branchId),
+      },
+    };
+  }
+
+  async me(userId: string): Promise<AuthUserDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { branches: { select: { branchId: true } } },
+    });
+    if (!user) throw new UnauthorizedException('User not found');
+
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId,
+      branchIds: user.branches.map((b) => b.branchId),
+    };
   }
 }
