@@ -65,6 +65,13 @@ services:
       - "${AGENT_PORT:-8000}:8000"
     env_file:
       - ./service-agent/.env
+    environment:
+      # Overrides de rede (o .env local pode apontar para localhost no host)
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-pass}@postgres:5432/${POSTGRES_DB:-platform}
+      REDIS_URL: redis://redis:6379
+    extra_hosts:
+      # Permite alcançar serviços rodando no host (ex.: Ollama local)
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
