@@ -44,6 +44,10 @@ services:
       - "${GATEWAY_PORT:-3000}:3000"
     env_file:
       - ./service-gateway/.env
+    environment:
+      # Overrides de rede (o .env usa localhost para rodar Prisma/ferramentas a partir do host)
+      DATABASE_URL: postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-pass}@postgres:5432/${POSTGRES_DB:-platform}
+      REDIS_URL: redis://redis:6379
     depends_on:
       postgres:
         condition: service_healthy
