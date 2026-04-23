@@ -25,6 +25,7 @@ Branches temporárias:
 3. **PR por entrega.** Ao fechar uma SPEC, abrir PR da feature branch para `develop`. Só avançar para a próxima SPEC após o PR estar aberto.
 4. **Commits na feature branch.** Todo trabalho-em-progresso fica na feature branch; `develop` só avança por merge de PR.
 5. **Mensagem de commit** segue Conventional Commits: `feat(spec-03): módulo auth com JWT e tenant isolation`.
+6. **Auto-merge.** Após abrir o PR, mergear automaticamente (`gh pr merge <n> --merge --delete-branch`) sem esperar confirmação do usuário, e sincronizar o local (`git checkout develop && git pull`). Não interromper o fluxo para pedir permissão de merge — o usuário já autorizou em caráter permanente por esta diretiva.
 
 ### Fluxo padrão de uma SPEC
 
@@ -39,9 +40,12 @@ git checkout -b feature/spec-XX-slug
 git add .
 git commit -m "feat(spec-XX): descrição curta da entrega"
 
-# 4. Push e abrir PR
+# 4. Push, abrir PR e mergear automaticamente
 git push -u origin feature/spec-XX-slug
-gh pr create --base develop --title "feat(spec-XX): ..." --body "..."
+PR_URL=$(gh pr create --base develop --title "feat(spec-XX): ..." --body "...")
+PR_NUM="${PR_URL##*/}"
+gh pr merge "$PR_NUM" --merge --delete-branch
+git checkout develop && git pull
 ```
 
 ---
