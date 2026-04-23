@@ -5,6 +5,7 @@ export interface JwtPayload {
   tenantId: string;
   role: Role;
   email: string;
+  name: string;
 }
 
 export interface AuthenticatedUser {
@@ -12,11 +13,13 @@ export interface AuthenticatedUser {
   tenantId: string;
   role: Role;
   email: string;
+  name: string;
 }
 
 export interface AuthUserDto {
   id: string;
   email: string;
+  name: string;
   role: Role;
   tenantId: string;
   branchIds: string[];

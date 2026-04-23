@@ -29,6 +29,7 @@ export class AuthService {
       tenantId: user.tenantId,
       role: user.role,
       email: user.email,
+      name: user.name,
     };
     const accessToken = await this.jwt.signAsync(payload);
 
@@ -37,6 +38,7 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
+        name: user.name,
         role: user.role,
         tenantId: user.tenantId,
         branchIds: user.branches.map((b) => b.branchId),
@@ -54,6 +56,7 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
+      name: user.name,
       role: user.role,
       tenantId: user.tenantId,
       branchIds: user.branches.map((b) => b.branchId),

@@ -35,10 +35,11 @@ async function main() {
 
   await prisma.user.upsert({
     where: { email: 'admin@acme.test' },
-    update: {},
+    update: { name: 'Administrador Acme' },
     create: {
       tenantId: tenant.id,
       email: 'admin@acme.test',
+      name: 'Administrador Acme',
       password: await hash('admin123'),
       role: 'ADMIN',
       branches: {
@@ -49,10 +50,11 @@ async function main() {
 
   await prisma.user.upsert({
     where: { email: 'agent@acme.test' },
-    update: {},
+    update: { name: 'Atendente Acme' },
     create: {
       tenantId: tenant.id,
       email: 'agent@acme.test',
+      name: 'Atendente Acme',
       password: await hash('agent123'),
       role: 'AGENT',
       branches: {
@@ -75,10 +77,11 @@ async function main() {
 
   await prisma.user.upsert({
     where: { email: 'admin@beta.test' },
-    update: {},
+    update: { name: 'Administrador Beta' },
     create: {
       tenantId: other.id,
       email: 'admin@beta.test',
+      name: 'Administrador Beta',
       password: await hash('admin123'),
       role: 'ADMIN',
       branches: { create: [{ branchId: other.branches[0]!.id }] },

@@ -50,7 +50,7 @@ export class ConversationService {
         skip: query.skip ?? 0,
         include: {
           channel: { select: { id: true, type: true, displayName: true } },
-          assignedUser: { select: { id: true, email: true } },
+          assignedUser: { select: { id: true, email: true, name: true } },
           _count: { select: { messages: true } },
         },
       }),
@@ -75,7 +75,7 @@ export class ConversationService {
         include: {
           channel: { select: { id: true, type: true, displayName: true } },
           branch: { select: { id: true, name: true } },
-          assignedUser: { select: { id: true, email: true } },
+          assignedUser: { select: { id: true, email: true, name: true } },
         },
       }),
       this.prisma.message.findMany({

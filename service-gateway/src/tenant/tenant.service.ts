@@ -145,6 +145,7 @@ export class TenantService {
       select: {
         id: true,
         email: true,
+        name: true,
         role: true,
         createdAt: true,
         branches: { select: { branch: { select: { id: true, name: true } } } },
@@ -167,13 +168,14 @@ export class TenantService {
       data: {
         tenantId,
         email: dto.email,
+        name: dto.name,
         password: hashed,
         role: dto.role,
         branches: dto.branchIds?.length
           ? { create: dto.branchIds.map((branchId) => ({ branchId })) }
           : undefined,
       },
-      select: { id: true, email: true, role: true, createdAt: true },
+      select: { id: true, email: true, name: true, role: true, createdAt: true },
     });
   }
 
