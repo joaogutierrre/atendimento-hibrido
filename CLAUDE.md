@@ -94,19 +94,6 @@ Cada SPEC tem **critério de aceite** em `ARCHITECTURE_BACKEND.md` — validar a
 
 ---
 
-## Pendências Conhecidas
-
-### Email único por tenant (não global)
-
-Hoje `User.email` é `@unique` globalmente — um e-mail só pode existir em um tenant.
-Para suportar o mesmo e-mail em múltiplos tenants bastaria mudar para `@@unique([tenantId, email])` no schema.
-
-**Por que não foi feito:** o endpoint `POST /auth/login` recebe apenas `{ email, password }` sem `tenantId`.
-Com email não-global, seria necessário também receber `tenantSlug` no login, o que muda o contrato da API
-e o formulário do frontend. Decisão de produto pendente antes de implementar.
-
----
-
 ## Referências
 
 - `ARCHITECTURE_BACKEND.md` — especificação técnica completa, contratos, schema, specs 01–15.
