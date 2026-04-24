@@ -16,7 +16,12 @@ AGENT_ESCALATE = "agent:escalate"
 AGENT_DEFER = "agent:defer"
 
 
-def make_tools(conversation_id: str, tenant_id: str, redis_client: aioredis.Redis) -> list:
+def make_tools(
+    conversation_id: str,
+    tenant_id: str,
+    redis_client: aioredis.Redis,
+    min_embedding_score: float = 0.3,
+) -> list:
     """Create tool instances bound to the current conversation context."""
 
     @tool
@@ -63,7 +68,7 @@ def make_tools(conversation_id: str, tenant_id: str, redis_client: aioredis.Redi
         """Search the tenant knowledge base for information relevant to the query."""
         session_factory = get_session_factory()
         async with session_factory() as db:
-            results = await _search_kb(db, tenant_id, query)
+            results = await _search_kb(db, tenant_id, query, min_score=min_embedding_score)
         if not results:
             return json.dumps({"found": False, "chunks": []})
         return json.dumps({"found": True, "chunks": results}, ensure_ascii=False)
