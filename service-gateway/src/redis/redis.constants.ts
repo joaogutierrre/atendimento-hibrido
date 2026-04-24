@@ -5,6 +5,7 @@ export const RedisChannels = {
   conversationUpdated: 'conversation:updated',
   agentRespond: 'agent:respond',
   agentEscalate: 'agent:escalate',
+  agentDefer: 'agent:defer',
   knowledgeChunkCreated: 'knowledge:chunk-created',
 } as const;
 

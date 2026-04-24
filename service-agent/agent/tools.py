@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 AGENT_RESPOND = "agent:respond"
 AGENT_ESCALATE = "agent:escalate"
+AGENT_DEFER = "agent:defer"
 
 
 def make_tools(conversation_id: str, tenant_id: str, redis_client: aioredis.Redis) -> list:
@@ -32,7 +33,8 @@ def make_tools(conversation_id: str, tenant_id: str, redis_client: aioredis.Redi
 
     @tool
     async def escalate_to_human(reason: str) -> str:
-        """Escalate the conversation to a human agent when you cannot help."""
+        """Escalate the conversation to a human agent when you cannot help.
+        Use only during business hours. Outside business hours, use defer_to_human instead."""
         payload = json.dumps({
             "conversationId": conversation_id,
             "tenantId": tenant_id,
@@ -41,6 +43,20 @@ def make_tools(conversation_id: str, tenant_id: str, redis_client: aioredis.Redi
         await redis_client.publish(AGENT_ESCALATE, payload)
         logger.info("escalate_to_human conv=%s reason=%r", conversation_id, reason)
         return f"Escalated to human: {reason}"
+
+    @tool
+    async def defer_to_human(reason: str) -> str:
+        """Register a request that needs human follow-up but can wait until next business hours.
+        Use this OUTSIDE business hours instead of escalate_to_human. The conversation
+        stays in AI mode so the customer can keep asking other questions in the meantime."""
+        payload = json.dumps({
+            "conversationId": conversation_id,
+            "tenantId": tenant_id,
+            "reason": reason,
+        })
+        await redis_client.publish(AGENT_DEFER, payload)
+        logger.info("defer_to_human conv=%s reason=%r", conversation_id, reason)
+        return f"Deferred to next business hours: {reason}"
 
     @tool
     async def search_knowledge_base(query: str) -> str:
@@ -60,4 +76,4 @@ def make_tools(conversation_id: str, tenant_id: str, redis_client: aioredis.Redi
             history = await get_conversation_history(db, conversation_id)
         return json.dumps(history, ensure_ascii=False, default=str)
 
-    return [send_message, escalate_to_human, search_knowledge_base, get_conversation_history]
+    return [send_message, escalate_to_human, defer_to_human, search_knowledge_base, get_conversation_history]

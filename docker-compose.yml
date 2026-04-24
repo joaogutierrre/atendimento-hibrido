@@ -69,6 +69,7 @@ services:
       # Overrides de rede (o .env local pode apontar para localhost no host)
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-pass}@postgres:5432/${POSTGRES_DB:-platform}
       REDIS_URL: redis://redis:6379
+      TENANT_TIMEZONE: ${TENANT_TIMEZONE:-America/Sao_Paulo}
     extra_hosts:
       # Permite alcançar serviços rodando no host (ex.: Ollama local)
       - "host.docker.internal:host-gateway"

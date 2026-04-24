@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { ConversationMode, SenderType } from '@prisma/client';
+import { ConversationMode, ConvStatus, SenderType } from '@prisma/client';
 
 import { AgentRelayService } from './agent-relay.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -23,7 +23,11 @@ describe('AgentRelayService', () => {
     conversation: { update: jest.fn() },
   };
   const mockMessaging = { sendViaConversation: jest.fn() };
-  const mockChat = { emitMessage: jest.fn(), emitEscalated: jest.fn() };
+  const mockChat = {
+    emitMessage: jest.fn(),
+    emitEscalated: jest.fn(),
+    emitUpdated: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -141,6 +145,55 @@ describe('AgentRelayService', () => {
       });
 
       expect(mockChat.emitMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Critério 3: defer fora de hora → status WAITING + notifica painel ─
+
+  describe('handleDefer', () => {
+    it('sets conversation status to WAITING (mode unchanged) and emits update', async () => {
+      mockPrisma.conversation.update.mockResolvedValue({
+        id: 'conv-6',
+        mode: ConversationMode.AI,
+        status: ConvStatus.WAITING,
+      });
+
+      await (service as any).handleDefer({
+        conversationId: 'conv-6',
+        tenantId: 'tenant-3',
+        reason: 'Cliente pediu cancelamento fora do horário',
+      });
+
+      expect(mockPrisma.conversation.update).toHaveBeenCalledWith({
+        where: { id: 'conv-6' },
+        data: { status: ConvStatus.WAITING },
+      });
+      expect(mockChat.emitUpdated).toHaveBeenCalledWith(
+        'tenant-3',
+        expect.objectContaining({
+          conversationId: 'conv-6',
+          status: ConvStatus.WAITING,
+          deferred: true,
+          reason: 'Cliente pediu cancelamento fora do horário',
+        }),
+      );
+    });
+
+    it('does not flip conversation to HUMAN mode (AI keeps answering)', async () => {
+      mockPrisma.conversation.update.mockResolvedValue({
+        id: 'conv-7',
+        mode: ConversationMode.AI,
+        status: ConvStatus.WAITING,
+      });
+
+      await (service as any).handleDefer({
+        conversationId: 'conv-7',
+        tenantId: 'tenant-3',
+        reason: 'Pendência registrada',
+      });
+
+      const updateArgs = mockPrisma.conversation.update.mock.calls[0]?.[0];
+      expect(updateArgs.data).not.toHaveProperty('mode');
     });
   });
 

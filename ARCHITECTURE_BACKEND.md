@@ -275,6 +275,15 @@ CHANNEL: agent:escalate
 Publicado por: service-agent
 Consumido por: service-gateway
 Payload: { conversationId, tenantId, reason: string }
+Efeito: conversation.mode = HUMAN. Use durante horário comercial.
+
+CHANNEL: agent:defer
+Publicado por: service-agent
+Consumido por: service-gateway
+Payload: { conversationId, tenantId, reason: string }
+Efeito: conversation.status = WAITING (mode permanece AI). Use fora do horário —
+a IA continua atendendo as próximas mensagens do cliente; atendente revisa a pendência
+no próximo horário comercial.
 
 CHANNEL: conversation:updated
 Publicado por: service-gateway → Socket.io
@@ -342,17 +351,24 @@ Eventos cliente → servidor:
 \`\`\`python
 tools = [
     send_message(conversation_id, content),       # envia pelo canal correto
-    escalate_to_human(conversation_id, reason),   # publica agent:escalate
+    escalate_to_human(conversation_id, reason),   # publica agent:escalate (em horário)
+    defer_to_human(conversation_id, reason),      # publica agent:defer (fora do horário)
     search_knowledge_base(tenant_id, query),      # RAG com pgvector
     get_conversation_history(conversation_id),    # últimas N mensagens
 ]
 
-# Regras de escalonamento:
-# 1. Cliente pede para falar com humano
-# 2. Resposta não encontrada no RAG
-# 3. Palavra da lista escalateOnWords detectada
-# 4. Fora do horário de funcionamento
-# 5. Incerteza alta — prefere escalonar a inventar
+# A IA está disponível 24/7 para FAQ, RAG e dúvidas gerais.
+# Disponibilidade humana é gated por workingHoursStart/End (hora local — TENANT_TIMEZONE).
+#
+# Regras durante horário comercial:
+#   1. Cliente pede para falar com humano → escalate_to_human
+#   2. Palavra da lista escalateOnWords detectada → escalate_to_human
+#   3. Resposta não encontrada no RAG → escalate_to_human
+#   4. Incerteza alta — prefere escalonar a inventar
+#
+# Regras fora do horário:
+#   1, 2, 3, 4 → defer_to_human (status=WAITING; conversa continua em modo AI).
+#      Agente avisa o cliente com offHoursMessage e oferece responder outras dúvidas.
 \`\`\`
 
 ---
