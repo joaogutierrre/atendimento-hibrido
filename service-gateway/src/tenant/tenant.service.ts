@@ -9,6 +9,7 @@ import { CreateBranchDto } from './dto/create-branch.dto';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateChannelDto } from './dto/update-channel.dto';
 import { UpsertAgentConfigDto } from './dto/upsert-config.dto';
 
 @Injectable()
@@ -106,6 +107,20 @@ export class TenantService {
     return channel;
   }
 
+  async updateChannel(tenantId: string, id: string, dto: UpdateChannelDto) {
+    const channel = await this.prisma.messagingChannel.findUnique({ where: { id } });
+    if (!channel) throw new NotFoundException('Channel not found');
+    if (channel.tenantId !== tenantId) throw new ForbiddenException('Not your channel');
+    return this.prisma.messagingChannel.update({
+      where: { id },
+      data: {
+        ...(dto.displayName !== undefined && { displayName: dto.displayName }),
+        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+      },
+      include: { branch: { select: { id: true, name: true } } },
+    });
+  }
+
   async deleteChannel(tenantId: string, id: string) {
     const channel = await this.prisma.messagingChannel.findUnique({ where: { id } });
     if (!channel) throw new NotFoundException('Channel not found');
@@ -115,11 +130,16 @@ export class TenantService {
 
   // ── KnowledgeChunk ─────────────────────────────────────────────────
   listKnowledge(tenantId: string) {
-    return this.prisma.knowledgeChunk.findMany({
-      where: { tenantId },
-      select: { id: true, content: true, sourceUrl: true, createdAt: true },
-      orderBy: { createdAt: 'desc' },
-    });
+    // embedding is Unsupported("vector") — use raw query to expose embeddingReady boolean
+    return this.prisma.$queryRaw<
+      Array<{ id: string; content: string; sourceUrl: string | null; createdAt: Date; embeddingReady: boolean }>
+    >`
+      SELECT id, content, "sourceUrl", "createdAt",
+             (embedding IS NOT NULL) AS "embeddingReady"
+      FROM "KnowledgeChunk"
+      WHERE "tenantId" = ${tenantId}
+      ORDER BY "createdAt" DESC
+    `;
   }
 
   async createKnowledge(tenantId: string, dto: CreateKnowledgeDto) {
