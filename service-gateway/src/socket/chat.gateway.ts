@@ -13,6 +13,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtPayload } from '../auth/types';
+import { PrismaService } from '../prisma/prisma.service';
 
 interface RoomPayload {
   conversationId: string;
@@ -28,7 +29,15 @@ function conversationRoom(id: string) {
   return `conversation:${id}`;
 }
 
-@WebSocketGateway({ cors: { origin: '*' } })
+@WebSocketGateway({
+  cors: {
+    origin: (process.env.CORS_ORIGINS ?? 'http://localhost:8080')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
+    credentials: true,
+  },
+})
 export class ChatGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
@@ -38,6 +47,7 @@ export class ChatGateway
   constructor(
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
   afterInit() {
@@ -88,7 +98,17 @@ export class ChatGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() body: RoomPayload,
   ) {
-    if (!this.userOf(client)) return { ok: false };
+    const user = this.userOf(client);
+    if (!user) return { ok: false, error: 'Unauthorized' };
+
+    const conv = await this.prisma.conversation.findUnique({
+      where: { id: body.conversationId },
+      select: { tenantId: true },
+    });
+    if (!conv || conv.tenantId !== user.tenantId) {
+      return { ok: false, error: 'Forbidden' };
+    }
+
     await client.join(conversationRoom(body.conversationId));
     return { ok: true };
   }

@@ -103,12 +103,18 @@ export class TelegramWebhookController {
 
     if (isNew) {
       this.gateway.emitNew(channel.tenantId, {
-        conversationId: conversation.id,
+        id: conversation.id,
         tenantId: channel.tenantId,
         branchId: channel.branchId,
         channelId: channel.id,
+        channelType: channel.type,
         customerRef,
         customerName,
+        mode: conversation.mode,
+        status: conversation.status,
+        assignedUserId: null,
+        createdAt: conversation.createdAt,
+        updatedAt: conversation.updatedAt,
       });
     }
     this.gateway.emitMessage(channel.tenantId, conversation.id, {

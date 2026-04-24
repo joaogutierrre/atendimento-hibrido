@@ -240,7 +240,7 @@ model KnowledgeChunk {
   id        String   @id @default(cuid())
   tenantId  String
   content   String   @db.Text
-  embedding Unsupported("vector(1536)")?
+  embedding Unsupported("vector(384)")?
   sourceUrl String?
   createdAt DateTime @default(now())
 
@@ -264,6 +264,7 @@ Payload: {
   customerRef: string
   content: string
   timestamp: ISO8601
+  mode: "AI" | "HUMAN"   // agent ignora se HUMAN
 }
 
 CHANNEL: agent:respond
@@ -296,28 +297,39 @@ Payload: { conversationId, tenantId, mode, status }
 
 ### Auth
 \`\`\`
-POST /auth/login   Body: { email, password }   Response: { accessToken: JWT }
+POST /auth/login    Body: { email, password }   Response: { accessToken, refreshToken, user }
+POST /auth/refresh  Body: { refreshToken }       Response: { accessToken, refreshToken }
+POST /auth/logout   Body: { refreshToken }       Response: 204
+GET  /auth/me                                    Response: AuthUserDto
 \`\`\`
 
 ### Conversas (JWT required)
 \`\`\`
-GET    /conversations
+GET    /conversations              ?status= &mode= &branchId= &take= &skip=
 GET    /conversations/:id
 PATCH  /conversations/:id/mode     { mode: "AI" | "HUMAN" }
-PATCH  /conversations/:id/assign   { userId }
+PATCH  /conversations/:id/assign   { userId: string | null }
 PATCH  /conversations/:id/resolve
-POST   /conversations/:id/messages { content }
+POST   /conversations/:id/messages { content }  (max 4096 chars)
 \`\`\`
 
 ### Admin (role: ADMIN)
 \`\`\`
 GET    /tenant/config
-PUT    /tenant/config
-POST   /tenant/knowledge
-DELETE /tenant/knowledge/:id
+PUT    /tenant/config              { systemPrompt, tone?, escalateOnWords?, offHoursMessage?, workingHoursStart?, workingHoursEnd? }
+GET    /tenant/branches
+POST   /tenant/branches            { name, address?, isActive? }
+DELETE /tenant/branches/:id
 GET    /tenant/channels
-POST   /tenant/channels   { type, identifier, displayName }
+POST   /tenant/channels            { branchId, type: "TELEGRAM"|"WHATSAPP", identifier, displayName, isActive? }
+PATCH  /tenant/channels/:id        { displayName?, isActive? }
 DELETE /tenant/channels/:id
+GET    /tenant/knowledge
+POST   /tenant/knowledge           { content, sourceUrl? }
+DELETE /tenant/knowledge/:id
+GET    /tenant/team
+POST   /tenant/team                { email, name, password, role: "ADMIN"|"AGENT", branchIds? }
+DELETE /tenant/team/:id
 \`\`\`
 
 ---
@@ -393,17 +405,26 @@ tools = [
 # service-gateway
 DATABASE_URL=postgresql://user:pass@localhost:5432/platform
 REDIS_URL=redis://localhost:6379
-JWT_SECRET=...
-TELEGRAM_WEBHOOK_SECRET=...
-META_API_TOKEN=...       # V2
-META_VERIFY_TOKEN=...    # V2
+JWT_SECRET=change-me-in-prod
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_DAYS=30
+THROTTLE_TTL=60000          # ms — janela do rate limiter global
+THROTTLE_LIMIT=120          # requests por janela
+TELEGRAM_WEBHOOK_SECRET=... # segredo para validar updates do Telegram
+WHATSAPP_ACCESS_TOKEN=...   # token de acesso Meta Cloud API
+WHATSAPP_VERIFY_TOKEN=...   # token de verificação do webhook Meta
+WHATSAPP_APP_SECRET=...     # segredo para validar HMAC-SHA256
+MESSAGING_DRY_RUN=false     # true = skip envio real (dev)
+PUBLIC_BASE_URL=https://...  # URL pública para registrar webhook Telegram
+CORS_ORIGINS=http://localhost:8080
 PORT=3000
 
 # service-agent
-DATABASE_URL=postgresql://user:pass@localhost:5432/platform
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/platform
 REDIS_URL=redis://localhost:6379
-ANTHROPIC_API_KEY=sk-ant-...
-EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_MODEL=gemma3:4b
+EMBEDDING_MODEL=intfloat/multilingual-e5-small
 PORT=8000
 \`\`\`
 
