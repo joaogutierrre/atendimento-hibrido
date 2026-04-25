@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-bg text-text-primary;
+  }
+}
+
+@layer components {
+  .input {
+    @apply bg-bg border border-border rounded-lg px-3 py-2 text-text-primary text-sm outline-none focus:border-ai transition-colors w-full;
+  }
+}
