@@ -140,8 +140,11 @@ export class ChatGateway
     this.server.to(tenantRoom(tenantId)).emit('conversation:new', payload);
   }
   emitMessage(tenantId: string, conversationId: string, payload: unknown) {
-    this.server.to(tenantRoom(tenantId)).emit('conversation:message', payload);
+    // Chained .to() emits to the union of rooms — sockets in both rooms
+    // (e.g., panel watching the tenant feed AND zoomed into the conversation)
+    // receive the event once. Two separate .emit() calls would duplicate.
     this.server
+      .to(tenantRoom(tenantId))
       .to(conversationRoom(conversationId))
       .emit('conversation:message', payload);
   }

@@ -96,6 +96,21 @@ services:
       - platform_net
     profiles: ["app"]
 
+  # Túnel Cloudflare para expor o gateway na internet (webhook do Telegram).
+  # Quick tunnel: URL muda a cada start — re-registrar o webhook depois com
+  # `bash infra/setup-telegram-webhook.sh`. Para hostname fixo, migrar para
+  # named tunnel (criar tunnel na conta Cloudflare e trocar o command para
+  # `tunnel run --token ${CLOUDFLARED_TOKEN}`).
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://gateway:3000
+    depends_on:
+      - gateway
+    networks:
+      - platform_net
+    profiles: ["tunnel"]
+
 networks:
   platform_net:
     driver: bridge
