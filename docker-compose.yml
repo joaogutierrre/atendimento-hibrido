@@ -82,19 +82,31 @@ services:
       - platform_net
     profiles: ["app"]
 
+  # Frontend (warmth-assist-link) em modo dev — vite dev com HMR.
+  # Build context aponta para o repo irmão; código é bind-mountado para
+  # iteração em tempo real, e node_modules fica em volume nomeado pra não
+  # colidir com a versão instalada no host (binários nativos por plataforma).
+  # Para deploy em produção, ver wrangler.jsonc — este service é só para dev.
+  # (Substituiu o slot nginx + ./service-frontend/dist do PR #24, que dependia
+  # de uma pasta que não existe mais; warmth-assist-link mora em repo próprio.)
   frontend:
-    image: nginx:alpine
+    build:
+      context: ../warmth-assist-link
+      dockerfile: Dockerfile.dev
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-8080}:80"
+      - "${FRONTEND_PORT:-8080}:8080"
     volumes:
-      - ./service-frontend/dist:/usr/share/nginx/html:ro
-      - ./service-frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../warmth-assist-link:/app
+      - frontend_node_modules:/app/node_modules
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000}
+      VITE_SOCKET_URL: ${VITE_SOCKET_URL:-http://localhost:3000}
     depends_on:
       - gateway
     networks:
       - platform_net
-    profiles: ["app"]
+    profiles: ["frontend"]
 
   # Túnel Cloudflare para expor o gateway na internet (webhook do Telegram).
   # Quick tunnel: URL muda a cada start — re-registrar o webhook depois com
@@ -118,3 +130,4 @@ networks:
 volumes:
   pgdata:
   redisdata:
+  frontend_node_modules:
