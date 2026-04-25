@@ -135,11 +135,30 @@ describe('AgentRelayService', () => {
       );
     });
 
-    it('does not call emitMessage on escalation (wrong event)', async () => {
-      mockPrisma.conversation.update.mockResolvedValue({ id: 'conv-5', mode: ConversationMode.HUMAN });
+    it('emits conversation:updated so the frontend list reflects mode=HUMAN', async () => {
+      mockPrisma.conversation.update.mockResolvedValue({
+        id: 'conv-5',
+        mode: ConversationMode.HUMAN,
+        status: 'OPEN',
+      });
 
       await (service as any).handleEscalate({
         conversationId: 'conv-5',
+        tenantId: 'tenant-1',
+        reason: 'Palavra-gatilho',
+      });
+
+      expect(mockChat.emitUpdated).toHaveBeenCalledWith(
+        'tenant-1',
+        expect.objectContaining({ conversationId: 'conv-5', mode: ConversationMode.HUMAN }),
+      );
+    });
+
+    it('does not call emitMessage on escalation (wrong event)', async () => {
+      mockPrisma.conversation.update.mockResolvedValue({ id: 'conv-6', mode: ConversationMode.HUMAN, status: 'OPEN' });
+
+      await (service as any).handleEscalate({
+        conversationId: 'conv-6',
         tenantId: 'tenant-1',
         reason: 'Sem resposta na base',
       });

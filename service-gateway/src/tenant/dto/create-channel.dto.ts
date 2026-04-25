@@ -1,5 +1,5 @@
 import { ChannelType } from '@prisma/client';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 
 export class CreateChannelDto {
   @IsString()
@@ -15,5 +15,6 @@ export class CreateChannelDto {
   displayName!: string;
 
   @IsOptional()
+  @IsBoolean()
   isActive?: boolean;
 }

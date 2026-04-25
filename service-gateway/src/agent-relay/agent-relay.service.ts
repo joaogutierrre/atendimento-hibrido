@@ -94,12 +94,19 @@ export class AgentRelayService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handleEscalate({ conversationId, tenantId, reason }: EscalatePayload) {
-    await this.prisma.conversation.update({
+    const updated = await this.prisma.conversation.update({
       where: { id: conversationId },
       data: { mode: ConversationMode.HUMAN },
     });
 
     this.chat.emitEscalated(tenantId, { conversationId, reason });
+    // Also emit conversation:updated so the frontend list reflects the mode change
+    this.chat.emitUpdated(tenantId, {
+      conversationId,
+      tenantId,
+      mode: updated.mode,
+      status: updated.status,
+    });
 
     this.logger.log(`agent:escalate conv=${conversationId} mode=HUMAN reason="${reason}"`);
   }
