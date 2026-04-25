@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Put,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthenticatedUser } from '../auth/types';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { CreateChannelDto } from './dto/create-channel.dto';
+import { UpdateChannelDto } from './dto/update-channel.dto';
 import { CreateKnowledgeDto } from './dto/create-knowledge.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpsertAgentConfigDto } from './dto/upsert-config.dto';
@@ -62,6 +64,15 @@ export class TenantController {
   @Post('channels')
   createChannel(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateChannelDto) {
     return this.svc.createChannel(user.tenantId, dto);
+  }
+
+  @Patch('channels/:id')
+  updateChannel(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateChannelDto,
+  ) {
+    return this.svc.updateChannel(user.tenantId, id, dto);
   }
 
   @Delete('channels/:id')
