@@ -3,7 +3,8 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import redis.asyncio as aioredis
 from langchain_core.messages import SystemMessage
@@ -18,6 +19,16 @@ logger = logging.getLogger(__name__)
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma:4b")
+TENANT_TIMEZONE = os.getenv("TENANT_TIMEZONE", "America/Sao_Paulo")
+
+
+def _tenant_now_hour() -> int:
+    try:
+        tz = ZoneInfo(TENANT_TIMEZONE)
+    except ZoneInfoNotFoundError:
+        logger.warning("Unknown TENANT_TIMEZONE=%r, falling back to UTC", TENANT_TIMEZONE)
+        tz = ZoneInfo("UTC")
+    return datetime.now(tz).hour
 
 _redis_client: aioredis.Redis | None = None
 
@@ -67,39 +78,44 @@ async def run_agent(message: IncomingMessage) -> None:
         logger.warning("No AgentConfig for tenant %s — using defaults", message.tenant_id)
         config = _default_config()
 
-    # Off-hours check (UTC)
-    now_hour = datetime.now(timezone.utc).hour
-    if not (config.working_hours_start <= now_hour < config.working_hours_end):
-        if config.off_hours_message:
-            await redis.publish(
-                AGENT_RESPOND,
-                json.dumps({
-                    "conversationId": message.conversation_id,
-                    "tenantId": message.tenant_id,
-                    "content": config.off_hours_message,
-                }),
-            )
-            logger.info("Off-hours auto-reply sent for conv=%s", message.conversation_id)
-            return
+    # Off-hours check in tenant timezone — never bypasses the LLM. The flag is passed
+    # to the prompt so the agent keeps answering FAQ but defers human-only requests.
+    now_hour = _tenant_now_hour()
+    is_off_hours = not (
+        config.working_hours_start <= now_hour < config.working_hours_end
+    )
 
-    # Escalation trigger-word check (before LLM call — fast path)
+    # Trigger-word fast path — escalate during business hours, defer otherwise.
     content_lower = message.content.lower()
     for word in config.escalate_on_words:
         if word.lower() in content_lower:
+            channel = "agent:defer" if is_off_hours else "agent:escalate"
             await redis.publish(
-                "agent:escalate",
+                channel,
                 json.dumps({
                     "conversationId": message.conversation_id,
                     "tenantId": message.tenant_id,
                     "reason": f"Palavra-gatilho detectada: '{word}'",
                 }),
             )
+            if is_off_hours and config.off_hours_message:
+                await redis.publish(
+                    AGENT_RESPOND,
+                    json.dumps({
+                        "conversationId": message.conversation_id,
+                        "tenantId": message.tenant_id,
+                        "content": config.off_hours_message,
+                    }),
+                )
             logger.info(
-                "Trigger-word '%s' → escalating conv=%s", word, message.conversation_id
+                "Trigger-word '%s' → %s conv=%s",
+                word,
+                "deferring" if is_off_hours else "escalating",
+                message.conversation_id,
             )
             return
 
-    system_prompt = build_system_prompt(config)
+    system_prompt = build_system_prompt(config, is_off_hours=is_off_hours)
     tools = make_tools(message.conversation_id, message.tenant_id, redis)
 
     llm = ChatOllama(model=OLLAMA_MODEL, base_url=OLLAMA_BASE_URL, temperature=0)
