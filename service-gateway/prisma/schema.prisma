@@ -169,9 +169,10 @@ model AgentConfig {
   systemPrompt      String   @db.Text
   tone              String   @default("professional")
   escalateOnWords   String[]
-  offHoursMessage   String?
-  workingHoursStart Int      @default(8)
-  workingHoursEnd   Int      @default(18)
+  offHoursMessage     String?
+  workingHoursStart   Int      @default(8)
+  workingHoursEnd     Int      @default(18)
+  minEmbeddingScore   Float    @default(0.3)
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 }

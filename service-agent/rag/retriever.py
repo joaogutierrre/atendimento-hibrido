@@ -8,7 +8,7 @@ from rag.embeddings import generate_embedding
 logger = logging.getLogger(__name__)
 
 TOP_K = 3
-MIN_SCORE = 0.3  # cosine similarity threshold (1 - cosine_distance)
+DEFAULT_MIN_SCORE = 0.3  # cosine similarity threshold (1 - cosine_distance)
 
 
 async def search_knowledge_base(
@@ -16,6 +16,7 @@ async def search_knowledge_base(
     tenant_id: str,
     query: str,
     top_k: int = TOP_K,
+    min_score: float = DEFAULT_MIN_SCORE,
 ) -> list[dict]:
     """Return top-k KnowledgeChunk records most similar to query.
 
@@ -44,7 +45,7 @@ async def search_knowledge_base(
     chunks = [
         {"id": r["id"], "content": r["content"], "sourceUrl": r["sourceUrl"], "score": float(r["score"])}
         for r in rows
-        if float(r["score"]) >= MIN_SCORE
+        if float(r["score"]) >= min_score
     ]
 
     logger.debug("search_knowledge_base tenant=%s query=%r → %d results", tenant_id, query[:50], len(chunks))

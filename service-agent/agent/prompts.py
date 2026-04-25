@@ -12,13 +12,14 @@ class AgentConfig:
     off_hours_message: str | None
     working_hours_start: int
     working_hours_end: int
+    min_embedding_score: float = 0.3
 
 
 async def load_agent_config(db: AsyncSession, tenant_id: str) -> AgentConfig | None:
     result = await db.execute(
         text(
             'SELECT "systemPrompt", tone, "escalateOnWords", "offHoursMessage", '
-            '"workingHoursStart", "workingHoursEnd" '
+            '"workingHoursStart", "workingHoursEnd", "minEmbeddingScore" '
             'FROM "AgentConfig" WHERE "tenantId" = :tid'
         ),
         {"tid": tenant_id},
@@ -33,6 +34,7 @@ async def load_agent_config(db: AsyncSession, tenant_id: str) -> AgentConfig | N
         off_hours_message=row["offHoursMessage"],
         working_hours_start=row["workingHoursStart"],
         working_hours_end=row["workingHoursEnd"],
+        min_embedding_score=float(row["minEmbeddingScore"]),
     )
 
 

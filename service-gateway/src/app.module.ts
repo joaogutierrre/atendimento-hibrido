@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
+import { UserAwareThrottlerGuard } from './auth/guards/user-throttler.guard';
 import { TenantInterceptor } from './auth/interceptors/tenant.interceptor';
 import { AgentRelayModule } from './agent-relay/agent-relay.module';
 import { ConversationModule } from './conversation/conversation.module';
@@ -41,8 +42,9 @@ import { TenantModule } from './tenant/tenant.module';
   ],
   controllers: [HealthController],
   providers: [
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // JwtAuthGuard first so req.user is set before throttler evaluates the key
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: UserAwareThrottlerGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
   ],

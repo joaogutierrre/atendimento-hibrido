@@ -58,6 +58,7 @@ async def _process_entry(client: aioredis.Redis, entry_id: bytes, fields: dict) 
         customer_ref=payload.get("customerRef", ""),
         content=payload.get("content", ""),
         timestamp=payload.get("timestamp", ""),
+        mode=mode,
     )
 
     try:

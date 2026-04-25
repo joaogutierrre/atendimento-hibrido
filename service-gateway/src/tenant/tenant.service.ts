@@ -36,6 +36,7 @@ export class TenantService {
       offHoursMessage: dto.offHoursMessage ?? null,
       workingHoursStart: dto.workingHoursStart ?? 8,
       workingHoursEnd: dto.workingHoursEnd ?? 18,
+      minEmbeddingScore: dto.minEmbeddingScore ?? 0.3,
     };
     return this.prisma.agentConfig.upsert({
       where: { tenantId },
@@ -47,6 +48,7 @@ export class TenantService {
         offHoursMessage: dto.offHoursMessage,
         workingHoursStart: dto.workingHoursStart,
         workingHoursEnd: dto.workingHoursEnd,
+        minEmbeddingScore: dto.minEmbeddingScore,
       },
     });
   }

@@ -1,4 +1,4 @@
-import { IsArray, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsArray, IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class UpsertAgentConfigDto {
   @IsString()
@@ -28,4 +28,10 @@ export class UpsertAgentConfigDto {
   @Min(0)
   @Max(23)
   workingHoursEnd?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  minEmbeddingScore?: number;
 }

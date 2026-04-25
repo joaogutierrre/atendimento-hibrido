@@ -53,6 +53,7 @@ def _default_config() -> AgentConfig:
         off_hours_message=None,
         working_hours_start=0,
         working_hours_end=24,
+        min_embedding_score=0.3,
     )
 
 
@@ -65,6 +66,7 @@ class IncomingMessage:
     customer_ref: str
     content: str
     timestamp: str
+    mode: str = "AI"
 
 
 async def run_agent(message: IncomingMessage) -> None:
@@ -80,6 +82,8 @@ async def run_agent(message: IncomingMessage) -> None:
 
     # Off-hours check in tenant timezone — never bypasses the LLM. The flag is passed
     # to the prompt so the agent keeps answering FAQ but defers human-only requests.
+    # Quando a conversa já está em modo HUMAN o consumer ignora antes mesmo de
+    # chegar aqui (ver redis_consumer), então não precisamos checar message.mode.
     now_hour = _tenant_now_hour()
     is_off_hours = not (
         config.working_hours_start <= now_hour < config.working_hours_end
@@ -116,7 +120,12 @@ async def run_agent(message: IncomingMessage) -> None:
             return
 
     system_prompt = build_system_prompt(config, is_off_hours=is_off_hours)
-    tools = make_tools(message.conversation_id, message.tenant_id, redis)
+    tools = make_tools(
+        message.conversation_id,
+        message.tenant_id,
+        redis,
+        config.min_embedding_score,
+    )
 
     llm = ChatOllama(model=OLLAMA_MODEL, base_url=OLLAMA_BASE_URL, temperature=0)
     agent = create_react_agent(
